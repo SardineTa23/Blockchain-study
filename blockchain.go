@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -9,13 +11,13 @@ import (
 
 type Block struct {
 	nonce        int
-	previousHash string
+	previousHash [32]byte
 	timestamp    int64
 	transactions []string
 }
 
 // Blockの作成
-func NewBlock(nonce int, previousHash string) *Block {
+func NewBlock(nonce int, previousHash [32]byte) *Block {
 	// newはポインタが返る
 	b := new(Block)
 
@@ -27,10 +29,31 @@ func NewBlock(nonce int, previousHash string) *Block {
 	return b
 }
 
+// レシーバーのブロックをハッシュ化したものを返す。
+func (b *Block) Hash() [32]byte {
+	m, _ := json.Marshal(b)
+	return sha256.Sum256([]byte(m))
+}
+
+// ただのjson.Marshalではプライベートなプロパティにアクセスできないため、Marshalを上書き
+func (b *Block) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Timestamp    int64    `json:"timestamp"`
+		Nonce        int      `json:"nonce"`
+		PreviousHash [32]byte `json:"previous_hash"`
+		Transactions []string `json:"transactions"`
+	}{
+		Timestamp:    b.timestamp,
+		Nonce:        b.nonce,
+		PreviousHash: b.previousHash,
+		Transactions: b.transactions,
+	})
+}
+
 func (b *Block) Print() {
 	fmt.Printf("timestamp     %d\n", b.timestamp)
 	fmt.Printf("nonce     %d\n", b.nonce)
-	fmt.Printf("previousHash     %s\n", b.previousHash)
+	fmt.Printf("previousHash     %x\n", b.previousHash)
 	fmt.Printf("transactions     %s\n", b.transactions)
 }
 
@@ -41,16 +64,22 @@ type Blockchain struct {
 
 // 新しいブロックチェーンの作成
 func NewBlockChain() *Blockchain {
+	b := &Block{}
 	bc := new(Blockchain)
-	bc.CreateBlock(0, "init hash")
+	bc.CreateBlock(0, b.Hash())
 	return bc
 }
 
 // chainするBlockを作成してチェーンに追加
-func (bc *Blockchain) CreateBlock(nonce int, previousHash string) *Block {
+func (bc *Blockchain) CreateBlock(nonce int, previousHash [32]byte) *Block {
 	b := NewBlock(nonce, previousHash)
 	bc.chain = append(bc.chain, b)
 	return b
+}
+
+// レシーバーのチェーンで繋がっている最後のブロックを取得
+func (bc *Blockchain) LastBlock() *Block {
+	return bc.chain[len(bc.chain)-1]
 }
 
 // チェーンの中身をループで回して、添字とともに表示
@@ -67,10 +96,15 @@ func init() {
 }
 
 func main() {
+
 	blockchain := NewBlockChain()
 	blockchain.Print()
-	blockchain.CreateBlock(5, "hash 1")
+
+	previousHash := blockchain.LastBlock().Hash()
+	blockchain.CreateBlock(5, previousHash)
 	blockchain.Print()
-	blockchain.CreateBlock(2, "hash 2")
+
+	previousHash = blockchain.LastBlock().Hash()
+	blockchain.CreateBlock(2, previousHash)
 	blockchain.Print()
 }
