@@ -13,11 +13,11 @@ type Block struct {
 	nonce        int
 	previousHash [32]byte
 	timestamp    int64
-	transactions []string
+	transactions []*Transaction
 }
 
 // Blockの作成
-func NewBlock(nonce int, previousHash [32]byte) *Block {
+func NewBlock(nonce int, previousHash [32]byte, transactions []*Transaction) *Block {
 	// newはポインタが返る
 	b := new(Block)
 
@@ -25,8 +25,18 @@ func NewBlock(nonce int, previousHash [32]byte) *Block {
 	b.timestamp = time.Now().UnixNano()
 	b.nonce = nonce
 	b.previousHash = previousHash
+	b.transactions = transactions
 
 	return b
+}
+
+func (b *Block) Print() {
+	fmt.Printf("timestamp     %d\n", b.timestamp)
+	fmt.Printf("nonce     %d\n", b.nonce)
+	fmt.Printf("previous_hash     %x\n", b.previousHash)
+	for _, t := range b.transactions {
+		t.Print()
+	}
 }
 
 // レシーバーのブロックをハッシュ化したものを返す。
@@ -38,10 +48,10 @@ func (b *Block) Hash() [32]byte {
 // ただのjson.Marshalではプライベートなプロパティにアクセスできないため、Marshalを上書き
 func (b *Block) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Timestamp    int64    `json:"timestamp"`
-		Nonce        int      `json:"nonce"`
-		PreviousHash [32]byte `json:"previous_hash"`
-		Transactions []string `json:"transactions"`
+		Timestamp    int64          `json:"timestamp"`
+		Nonce        int            `json:"nonce"`
+		PreviousHash [32]byte       `json:"previous_hash"`
+		Transactions []*Transaction `json:"transactions"`
 	}{
 		Timestamp:    b.timestamp,
 		Nonce:        b.nonce,
@@ -50,15 +60,8 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (b *Block) Print() {
-	fmt.Printf("timestamp     %d\n", b.timestamp)
-	fmt.Printf("nonce     %d\n", b.nonce)
-	fmt.Printf("previousHash     %x\n", b.previousHash)
-	fmt.Printf("transactions     %s\n", b.transactions)
-}
-
 type Blockchain struct {
-	transactionPool []string
+	transactionPool []*Transaction
 	chain           []*Block
 }
 
@@ -71,9 +74,11 @@ func NewBlockChain() *Blockchain {
 }
 
 // chainするBlockを作成してチェーンに追加
+// レシーバーのTransactionPoolの中身を、作成するBlockのTransactionsにいれて、レシーバーのPoolは空にする
 func (bc *Blockchain) CreateBlock(nonce int, previousHash [32]byte) *Block {
-	b := NewBlock(nonce, previousHash)
+	b := NewBlock(nonce, previousHash, bc.transactionPool)
 	bc.chain = append(bc.chain, b)
+	bc.transactionPool = []*Transaction{}
 	return b
 }
 
@@ -91,6 +96,47 @@ func (bc *Blockchain) Print() {
 	fmt.Printf("%s\n", strings.Repeat("*", 25))
 }
 
+// 引数情報を持つTransactionを新規作成、レシーバーのTransactionPoolに追加する
+func (bc *Blockchain) AddTransaction(sender string, recipient string, value float32) {
+	t := NewTransaction(sender, recipient, value)
+	bc.transactionPool = append(bc.transactionPool, t)
+}
+
+type Transaction struct {
+	// 例：送金した人
+	senderBlockchainAddress string
+
+	// 例：お金を受け取った人
+	recipientBlockchainAddress string
+
+	// 例：送金した内容（金額など）
+	value float32
+}
+
+func NewTransaction(sender string, recipient string, value float32) *Transaction {
+	return &Transaction{sender, recipient, value}
+}
+
+func (t *Transaction) Print() {
+	fmt.Printf("%s\n", strings.Repeat("-", 40))
+	fmt.Printf(" sender_blockchain_address        %s\n", t.senderBlockchainAddress)
+	fmt.Printf(" recipient_blockchain_address     %s\n", t.recipientBlockchainAddress)
+	fmt.Printf(" value                            %.1f\n", t.value)
+
+}
+
+func (t *Transaction) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Sender    string  `json:"sender_blockchain_address"`
+		Recipient string  `json:"recipient_blockchain_address"`
+		Value     float32 `json:"value"`
+	}{
+		Sender:    t.senderBlockchainAddress,
+		Recipient: t.recipientBlockchainAddress,
+		Value:     t.value,
+	})
+}
+
 func init() {
 	log.SetPrefix("Blockchain: ")
 }
@@ -100,10 +146,13 @@ func main() {
 	blockchain := NewBlockChain()
 	blockchain.Print()
 
+	blockchain.AddTransaction("A", "B", 1.0)
 	previousHash := blockchain.LastBlock().Hash()
 	blockchain.CreateBlock(5, previousHash)
 	blockchain.Print()
 
+	blockchain.AddTransaction("A", "B", 2.0)
+	blockchain.AddTransaction("A", "B", 3.0)
 	previousHash = blockchain.LastBlock().Hash()
 	blockchain.CreateBlock(2, previousHash)
 	blockchain.Print()
