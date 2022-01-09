@@ -9,8 +9,12 @@ import (
 	"time"
 )
 
-// マイニングで設定した一致する行頭文字数
-const MINING_DIFFICULTY = 3
+const (
+	// マイニングで設定した一致する行頭文字数
+	MINING_DIFFICULTY = 3
+	MINING_SENDER     = "THE BLOCKCHAIN"
+	MINING_REWARD     = 1.0
+)
 
 type Block struct {
 	timestamp    int64
@@ -64,14 +68,16 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 }
 
 type Blockchain struct {
-	transactionPool []*Transaction
-	chain           []*Block
+	transactionPool   []*Transaction
+	chain             []*Block
+	blockchainAddress string
 }
 
 // 新しいブロックチェーンの作成
-func NewBlockChain() *Blockchain {
+func NewBlockChain(blockchainAddress string) *Blockchain {
 	b := &Block{}
 	bc := new(Blockchain)
+	bc.blockchainAddress = blockchainAddress
 	bc.CreateBlock(0, b.Hash())
 	return bc
 }
@@ -136,6 +142,18 @@ func (bc *Blockchain) ProofOfWork() int {
 	return nonce
 }
 
+// 新規BlockをChainするために必要となるMining処理全般を扱う。
+func (bc *Blockchain) Mining() bool {
+	// マイニングした人へ送金するためのTransaction作成
+	bc.AddTransaction(MINING_SENDER, bc.blockchainAddress, MINING_REWARD)
+
+	nonce := bc.ProofOfWork()
+	previousHash := bc.LastBlock().Hash()
+	bc.CreateBlock(nonce, previousHash)
+	log.Println("action=mining, status=success")
+	return true
+}
+
 type Transaction struct {
 	// 例：送金した人
 	senderBlockchainAddress string
@@ -176,20 +194,16 @@ func init() {
 }
 
 func main() {
-
-	blockchain := NewBlockChain()
+	myBlockChainAddress := "my_blockchain_address"
+	blockchain := NewBlockChain(myBlockChainAddress)
 	blockchain.Print()
 
 	blockchain.AddTransaction("A", "B", 1.0)
-	previousHash := blockchain.LastBlock().Hash()
-	nonce := blockchain.ProofOfWork()
-	blockchain.CreateBlock(nonce, previousHash)
+	blockchain.Mining()
 	blockchain.Print()
 
-	blockchain.AddTransaction("A", "B", 2.0)
-	blockchain.AddTransaction("A", "B", 3.0)
-	previousHash = blockchain.LastBlock().Hash()
-	nonce = blockchain.ProofOfWork()
-	blockchain.CreateBlock(nonce, previousHash)
+	blockchain.AddTransaction("C", "D", 2.0)
+	blockchain.AddTransaction("X", "Y", 3.0)
+	blockchain.Mining()
 	blockchain.Print()
 }
