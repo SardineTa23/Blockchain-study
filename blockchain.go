@@ -154,6 +154,26 @@ func (bc *Blockchain) Mining() bool {
 	return true
 }
 
+// 呼び出し時点のチェーン内で、引数の人がどれだけのValueを持っているかを返す。
+func (bc *Blockchain) CalculateTotalAmount(blockchainAddress string) float32 {
+	var totalAmount float32 = 0.0
+	for _, b := range bc.chain {
+		for _, t := range b.transactions {
+			value := t.value
+			// 受け取ったvalueは足し算
+			if blockchainAddress == t.recipientBlockchainAddress {
+				totalAmount += value
+			}
+
+			// 送信したvalueは引き算
+			if blockchainAddress == t.senderBlockchainAddress {
+				totalAmount -= value
+			}
+		}
+	}
+	return totalAmount
+}
+
 type Transaction struct {
 	// 例：送金した人
 	senderBlockchainAddress string
@@ -206,4 +226,8 @@ func main() {
 	blockchain.AddTransaction("X", "Y", 3.0)
 	blockchain.Mining()
 	blockchain.Print()
+
+	fmt.Printf("my %.1f\n", blockchain.CalculateTotalAmount(myBlockChainAddress))
+	fmt.Printf("C %.1f\n", blockchain.CalculateTotalAmount("C"))
+	fmt.Printf("D %.1f\n", blockchain.CalculateTotalAmount("D"))
 }
