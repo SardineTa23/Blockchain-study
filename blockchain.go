@@ -125,7 +125,7 @@ func (bc *Blockchain) ValidProof(nonce int, previousHash [32]byte, transactions 
 	return guessHashStr[:difficulty] == zeros
 }
 
-// レシーバーでnonceの適当な値が見つかるまでvalidProofを呼び続けるメソッド
+// レシーバーのnonceの適当な値が見つかるまでvalidProofを呼び続けるメソッド
 func (bc *Blockchain) ProofOfWork() int {
 	transactions := bc.CopyTransactionPool()
 	previousHash := bc.LastBlock().Hash()
