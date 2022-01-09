@@ -1,6 +1,8 @@
 package block
 
 import (
+	"blockchain-study/utils"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -106,9 +108,40 @@ func (bc *Blockchain) Print() {
 }
 
 // 引数情報を持つTransactionを新規作成、レシーバーのTransactionPoolに追加する
-func (bc *Blockchain) AddTransaction(sender string, recipient string, value float32) {
+func (bc *Blockchain) AddTransaction(sender string, recipient string, value float32,
+	senderPublicKey *ecdsa.PublicKey, s *utils.Signature) bool {
 	t := NewTransaction(sender, recipient, value)
-	bc.transactionPool = append(bc.transactionPool, t)
+
+	// マイニングの際は、署名チェック不要
+	if sender == MINING_SENDER {
+		bc.transactionPool = append(bc.transactionPool, t)
+		return true
+	}
+
+	if bc.VerifyTransactionSignature(senderPublicKey, s, t) {
+		// 所持残高が送金量に満たない時はtransaction追加処理を中止する
+		/*
+			if bc.CalculateTotalAmount(sender) < value {
+				log.Println("ERROR: Not enough balance in a wallet")
+				return false
+			}
+		*/
+
+		// transactionに追加
+		bc.transactionPool = append(bc.transactionPool, t)
+		return true
+	} else {
+		log.Println("ERROR: Verify Transaction")
+	}
+	return false
+}
+
+// 鍵、署名情報などを使って正当なトランザクション作成かをチェック
+func (bc *Blockchain) VerifyTransactionSignature(
+	serderPublicKey *ecdsa.PublicKey, s *utils.Signature, t *Transaction) bool {
+	m, _ := json.Marshal(t)
+	h := sha256.Sum256([]byte(m))
+	return ecdsa.Verify(serderPublicKey, h[:], s.R, s.S)
 }
 
 func (bc *Blockchain) CopyTransactionPool() []*Transaction {
@@ -145,7 +178,7 @@ func (bc *Blockchain) ProofOfWork() int {
 // 新規BlockをChainするために必要となるMining処理全般を扱う。
 func (bc *Blockchain) Mining() bool {
 	// マイニングした人へ送金するためのTransaction作成
-	bc.AddTransaction(MINING_SENDER, bc.blockchainAddress, MINING_REWARD)
+	bc.AddTransaction(MINING_SENDER, bc.blockchainAddress, MINING_REWARD, nil, nil)
 
 	nonce := bc.ProofOfWork()
 	previousHash := bc.LastBlock().Hash()
