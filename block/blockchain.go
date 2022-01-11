@@ -107,7 +107,7 @@ func (bc *Blockchain) Print() {
 	fmt.Printf("%s\n", strings.Repeat("*", 25))
 }
 
-// 引数情報を持つTransactionを新規作成、レシーバーのTransactionPoolに追加する
+// 引数の情報を持つTransactionを新規作成、レシーバーのTransactionPoolに追加する
 func (bc *Blockchain) AddTransaction(sender string, recipient string, value float32,
 	senderPublicKey *ecdsa.PublicKey, s *utils.Signature) bool {
 	t := NewTransaction(sender, recipient, value)
