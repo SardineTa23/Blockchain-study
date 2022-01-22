@@ -93,11 +93,13 @@ func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Reque
 
 		w.Header().Add("Content-Type", "application/json")
 
+		// 送信されてきたデータを新しいTransactionとして登録
 		transaction := wallet.NewTransaction(privateKey, publicKey,
 			*t.SenderBlockchainAddress, *t.RecipientBlockchainAddress, value32)
 		signature := transaction.GenerateSignature()
 		signatureStr := signature.String()
 
+		// blockchain_server側へ送信するRequestを作成
 		bt := &block.TransactionRequest{
 			SenderBlockchainAddress:    t.SenderBlockchainAddress,
 			RecipientBlockchainAddress: t.RecipientBlockchainAddress,
@@ -105,9 +107,12 @@ func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Reque
 			Value:                      &value32,
 			Signature:                  &signatureStr,
 		}
+
+		// transaciton内容をJsonへ
 		m, _ := json.Marshal(bt)
 		buf := bytes.NewBuffer(m)
 
+		// 作成したTransactionRequest内容をBodyに含めてblockchain_server側へリクエストをPostで飛ばす
 		resp, _ := http.Post(ws.Gateway()+"/transactions", "application/json", buf)
 		if resp.StatusCode == 201 {
 			io.WriteString(w, string(utils.JsonStatus("success")))
