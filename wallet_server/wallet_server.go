@@ -2,6 +2,7 @@ package main
 
 import (
 	"blockchain-study/wallet"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -50,6 +51,7 @@ func (ws *WalletServer) Index(w http.ResponseWriter, req *http.Request) {
 func (ws *WalletServer) Wallet(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
+		w.Header().Add("Content-Type", "application/json")
 		myWallet := wallet.NewWallet()
 		m, _ := myWallet.MarshalJSON()
 		io.WriteString(w, string(m[:]))
@@ -59,8 +61,19 @@ func (ws *WalletServer) Wallet(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodPost:
+		decoder := json.NewDecoder(req.Body)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("ERROR: Invalid HTTP Method")
+	}
+}
+
 func (ws *WalletServer) Run() {
 	http.HandleFunc("/", ws.Index)
 	http.HandleFunc("/wallet", ws.Wallet)
+	http.HandleFunc("/transaction", ws.CreateTransaction)
 	log.Fatal(http.ListenAndServe("0.0.0.0:"+strconv.Itoa(int(ws.Port())), nil))
 }
