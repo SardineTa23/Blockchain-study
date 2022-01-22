@@ -1,6 +1,7 @@
 package main
 
 import (
+	"blockchain-study/utils"
 	"blockchain-study/wallet"
 	"encoding/json"
 	"fmt"
@@ -65,6 +66,18 @@ func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Reque
 	switch req.Method {
 	case http.MethodPost:
 		decoder := json.NewDecoder(req.Body)
+		var t wallet.TransactionRequest
+		err := decoder.Decode(&t)
+		if err != nil {
+			log.Printf("ERROR: %v", err)
+			io.WriteString(w, string(utils.JsonStatus("fail")))
+			return
+		}
+		if !t.Validate() {
+			log.Printf("ERROR %v", "missing field(s)")
+			return
+		}
+
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("ERROR: Invalid HTTP Method")
