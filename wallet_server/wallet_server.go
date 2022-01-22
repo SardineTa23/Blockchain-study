@@ -62,6 +62,7 @@ func (ws *WalletServer) Wallet(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// クライアントが発行した新規トランザクションを受け取るAPI
 func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
@@ -77,7 +78,18 @@ func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Reque
 			log.Printf("ERROR %v", "missing field(s)")
 			return
 		}
+		publicKey := utils.PublicKeyFromString(*t.SenderPublicKey)
+		privateKey := utils.PrivateKeyFromString(*t.SenderPrivateKey, publicKey)
+		value, err := strconv.ParseFloat(*t.Value, 32)
+		if err != nil {
+			log.Println("ERROR: parse error")
+			io.WriteString(w, string(utils.JsonStatus("fail")))
+			return
+		}
 
+		value32 := float32(value)
+
+		w.Header().Add("Content-Type", "application/json")
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("ERROR: Invalid HTTP Method")
