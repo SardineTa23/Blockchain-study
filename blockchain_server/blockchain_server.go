@@ -136,9 +136,28 @@ func (bcs *BlockchainServer) Mine(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// 自動で実行されたマイニングの結果を返すAPI
+func (bcs *BlockchainServer) StartMine(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodGet:
+		bc := bcs.GetBlockchain()
+		bc.StartMining()
+
+		var m []byte
+		m = utils.JsonStatus("succsess")
+
+		w.Header().Add("Content-Type", "application/json")
+		io.WriteString(w, string(m))
+	default:
+		log.Println("ERROR: Invalid HTTP Method")
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
 func (bcs *BlockchainServer) Run() {
 	http.HandleFunc("/", bcs.GetChain)
 	http.HandleFunc("/transactions", bcs.Transactions)
 	http.HandleFunc("/mine", bcs.Mine)
+	http.HandleFunc("/mine/start", bcs.StartMine)
 	log.Fatal(http.ListenAndServe("0.0.0.0:"+strconv.Itoa(int(bcs.port)), nil))
 }
