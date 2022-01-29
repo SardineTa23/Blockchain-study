@@ -133,11 +133,15 @@ func (ws *WalletServer) WalletAmount(w http.ResponseWriter, req *http.Request) {
 
 		client := &http.Client{}
 		bcsReq, _ := http.NewRequest("GET", endpoint, nil)
+
+		// クエリパラメータを設定
 		q := bcsReq.URL.Query()
 		q.Add("blockchain_address", blockchainAddress)
 		bcsReq.URL.RawQuery = q.Encode()
 
+		// APIを叩く
 		bcsResp, err := client.Do(bcsReq)
+
 		if err != nil {
 			log.Printf("ERROR: %v", err)
 			io.WriteString(w, string(utils.JsonStatus("fail")))
